@@ -1,0 +1,605 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Casino Casio</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial Black', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a, #2a0a0a);
+      color: #ffd700;
+      margin: 0;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+    #casino-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #ff4444, 0 0 40px #ffd700;
+    }
+    h1 {
+      font-size: 48px;
+      text-shadow: 0 0 10px #ff4444, 0 0 20px #ffd700;
+      margin: 0;
+    }
+    #credits {
+      font-size: 32px;
+      background: #ffd700;
+      color: #1a1a1a;
+      padding: 10px;
+      border-radius: 10px;
+      margin: 20px 0;
+      box-shadow: 0 0 15px #ffd700;
+    }
+    .game-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 20px;
+      background: linear-gradient(45deg, #ff4444, #ff7777);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 10px #ff4444;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px #ff4444, 0 0 30px #ffd700;
+    }
+    #game-result {
+      font-size: 24px;
+      margin: 20px 0;
+      text-shadow: 0 0 5px #fff;
+    }
+    canvas {
+      border: 2px solid #ffd700;
+      border-radius: 10px;
+      margin: 20px auto;
+      box-shadow: 0 0 15px #ff4444;
+    }
+    .neon {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="transparent" /><circle cx="10%" cy="10%" r="50" fill="none" stroke="#ff4444" stroke-width="2" opacity="0.5"/><circle cx="90%" cy="90%" r="50" fill="none" stroke="#ffd700" stroke-width="2" opacity="0.5"/></svg>');
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.3; }
+      50% { opacity: 0.7; }
+      100% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div class="neon"></div>
+  <div id="casino-container">
+    <h1>🎰 Casino Casio 🎰</h1>
+    <div id="credits">Créditos: <span id="credit-amount">1000</span></div>
+    <div class="game-buttons">
+      <button onclick="startSlots()">Tragamonedas</button>
+      <button onclick="startRoulette()">Ruleta</button>
+      <button onclick="startBlackjack()">Blackjack</button>
+      <button onclick="startPoker()">Póker 3 Cartas</button>
+      <button onclick="startBingo()">Bingo</button>
+    </div>
+    <div id="game-result"></div>
+  </div>
+
+  <script>
+    let credits = parseInt(localStorage.getItem('casinoCredits')) || 1000;
+    let currentGame = null;
+    let gameState = {};
+
+    // Actualizar créditos
+    function updateCredits() {
+      document.getElementById('credit-amount').innerText = credits;
+      localStorage.setItem('casinoCredits', credits);
+    }
+
+    // Mostrar resultado
+    function showResult(message, color = '#ffd700') {
+      const resultDiv = document.getElementById('game-result');
+      resultDiv.innerText = message;
+      resultDiv.style.color = color;
+    }
+
+    // Configuración de p5.js
+    function setup() {
+      let canvas = createCanvas(600, 400);
+      canvas.parent('casino-container');
+      textAlign(CENTER, CENTER);
+      textSize(24);
+      updateCredits();
+    }
+
+    // Tragamonedas
+    function startSlots() {
+      currentGame = 'slots';
+      gameState = { spinning: false, result: null, spinTime: 0 };
+      showResult('¡Gira los rodillos! (Clic para jugar)', '#ffd700');
+      redraw();
+    }
+
+    function playSlots() {
+      if (credits < 20) {
+        showResult('No tienes suficientes créditos.', '#ff4444');
+        return;
+      }
+      credits -= 20; // Costo por giro
+      updateCredits();
+      gameState.spinning = true;
+      gameState.spinTime = millis();
+      showResult('¡Girando!', '#fff');
+    }
+
+    function drawSlots() {
+      background(50);
+      let symbols = ['7', '🍒', '💎', '🔔', 'BAR'];
+      let weights = [0.1, 0.3, 0.3, 0.2, 0.1]; // 60% ventaja casa
+      if (gameState.spinning && millis() - gameState.spinTime < 2000) {
+        // Animación de giro
+        for (let i = 0; i < 3; i++) {
+          let rand = floor(random(symbols.length));
+          textSize(60);
+          fill(255);
+          text(symbols[rand], 150 + i * 150, height / 2);
+        }
+      } else if (gameState.spinning) {
+        gameState.spinning = false;
+        gameState.result = [];
+        for (let i = 0; i < 3; i++) {
+          let rand = random();
+          let sum = 0;
+          for (let j = 0; j < weights.length; j++) {
+            sum += weights[j];
+            if (rand < sum) {
+              gameState.result.push(symbols[j]);
+              break;
+            }
+          }
+        }
+        showResult(`Resultado: ${gameState.result.join(' | ')}`, '#fff');
+        if (gameState.result[0] === gameState.result[1] && gameState.result[1] === gameState.result[2]) {
+          if (gameState.result[0] === '7') {
+            credits += 500; // Jackpot
+            showResult('¡JACKPOT! Ganaste 500 créditos.', '#00ff00');
+          } else {
+            credits += 100; // Combinación menor
+            showResult(`¡Ganaste 100 créditos! (${gameState.result[0]})`, '#00ff00');
+          }
+        } else {
+          showResult('No ganaste esta vez.', '#ff4444');
+        }
+        updateCredits();
+      }
+      if (gameState.result) {
+        textSize(60);
+        fill(255);
+        for (let i = 0; i < 3; i++) {
+          text(gameState.result[i], 150 + i * 150, height / 2);
+        }
+      }
+    }
+
+    // Ruleta
+    function startRoulette() {
+      currentGame = 'roulette';
+      gameState = { spinning: false, result: null, spinTime: 0 };
+      showResult('Apuesta (e.g., "50 rojo" o "50 17")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playRoulette(bet);
+    }
+
+    function playRoulette(bet) {
+      let [amount, choice] = bet.split(' ');
+      amount = parseInt(amount);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.spinning = true;
+      gameState.spinTime = millis();
+      gameState.bet = { amount, choice };
+    }
+
+    function drawRoulette() {
+      background(50);
+      if (gameState.spinning && millis() - gameState.spinTime < 2000) {
+        // Animación de ruleta
+        fill(255);
+        ellipse(width / 2, height / 2, 200, 200);
+        fill('#ff4444');
+        arc(width / 2, height / 2, 200, 200, 0, PI / 2);
+        fill('#000');
+        arc(width / 2, height / 2, 200, 200, PI / 2, PI);
+        textSize(24);
+        fill(255);
+        text('Girando...', width / 2, height / 2);
+      } else if (gameState.spinning) {
+        gameState.spinning = false;
+        let result = floor(random(0, 38)); // 0, 00, 1-36
+        let color = result === 0 || result === 37 ? 'verde' : (result % 2 === 0 ? 'rojo' : 'negro');
+        gameState.result = { number: result === 37 ? '00' : result, color };
+        let { amount, choice } = gameState.bet;
+        if (choice === 'rojo' || choice === 'negro') {
+          if (color === choice) {
+            credits += amount * 2;
+            showResult(`¡Ganaste! ${result} (${color})`, '#00ff00');
+          } else {
+            showResult(`Perdiste. ${result} (${color})`, '#ff4444');
+          }
+        } else if (!isNaN(choice) && parseInt(choice) >= 0 && parseInt(choice) <= 36) {
+          if (parseInt(choice) === result) {
+            credits += amount * 35;
+            showResult(`¡Ganaste! ${result}`, '#00ff00');
+          } else {
+            showResult(`Perdiste. ${result} (${color})`, '#ff4444');
+          }
+        } else {
+          showResult('Apuesta inválida.', '#ff4444');
+        }
+        updateCredits();
+      }
+      if (gameState.result) {
+        fill(255);
+        ellipse(width / 2, height / 2, 200, 200);
+        fill(gameState.result.color === 'rojo' ? '#ff4444' : gameState.result.color === 'negro' ? '#000' : '#00ff00');
+        ellipse(width / 2, height / 2, 100, 100);
+        fill(255);
+        text(gameState.result.number, width / 2, height / 2);
+      }
+    }
+
+    // Blackjack
+    function startBlackjack() {
+      currentGame = 'blackjack';
+      gameState = {
+        playerCards: [],
+        dealerCards: [],
+        phase: 'bet',
+        result: null
+      };
+      showResult('Ingresa tu apuesta (e.g., "50")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playBlackjack(bet);
+    }
+
+    function playBlackjack(bet) {
+      let amount = parseInt(bet);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.bet = amount;
+      gameState.playerCards = [drawCard(), drawCard()];
+      gameState.dealerCards = [drawCard(), drawCard()];
+      gameState.phase = 'play';
+      showResult('Clic para pedir carta, doble clic para plantarte', '#ffd700');
+    }
+
+    function drawCard() {
+      let values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      let suits = ['♠', '♥', '♦', '♣'];
+      return { value: values[floor(random(values.length))], suit: suits[floor(random(suits.length))] };
+    }
+
+    function getCardValue(card) {
+      if (card.value === 'A') return 11;
+      if (['J', 'Q', 'K'].includes(card.value)) return 10;
+      return parseInt(card.value);
+    }
+
+    function calculateHand(cards) {
+      let value = 0;
+      let aces = 0;
+      for (let card of cards) {
+        if (card.value === 'A') aces++;
+        value += getCardValue(card);
+      }
+      while (value > 21 && aces > 0) {
+        value -= 10;
+        aces--;
+      }
+      return value;
+    }
+
+    function drawBlackjack() {
+      background(50);
+      textSize(24);
+      fill(255);
+      text('Jugador:', 100, 50);
+      gameState.playerCards.forEach((card, i) => {
+        fill('#fff');
+        rect(100 + i * 80, 80, 60, 80);
+        fill(card.suit === '♥' || card.suit === '♦' ? '#ff4444' : '#000');
+        text(`${card.value}${card.suit}`, 130 + i * 80, 120);
+      });
+      text('Crupier:', 100, 200);
+      gameState.dealerCards.forEach((card, i) => {
+        fill('#fff');
+        rect(100 + i * 80, 230, 60, 80);
+        fill(card.suit === '♥' || card.suit === '♦' ? '#ff4444' : '#000');
+        text(i === 0 && gameState.phase === 'play' ? '??' : `${card.value}${card.suit}`, 130 + i * 80, 270);
+      });
+      if (gameState.result) {
+        text(gameState.result, width / 2, height / 2);
+      }
+    }
+
+    function playBlackjackTurn(hit) {
+      if (gameState.phase !== 'play') return;
+      if (hit) {
+        gameState.playerCards.push(drawCard());
+        if (calculateHand(gameState.playerCards) > 21) {
+          gameState.phase = 'end';
+          gameState.result = 'Perdiste. Te pasaste.';
+          showResult(gameState.result, '#ff4444');
+          updateCredits();
+          return;
+        }
+      } else {
+        gameState.phase = 'end';
+        while (calculateHand(gameState.dealerCards) < 17) {
+          gameState.dealerCards.push(drawCard());
+        }
+        let playerValue = calculateHand(gameState.playerCards);
+        let dealerValue = calculateHand(gameState.dealerCards);
+        if (dealerValue > 21 || playerValue > dealerValue) {
+          credits += gameState.bet * 2;
+          gameState.result = '¡Ganaste!';
+          showResult(gameState.result, '#00ff00');
+        } else if (playerValue === dealerValue) {
+          credits += gameState.bet; // Empate, casa gana
+          gameState.result = 'Empate. Casa gana.';
+          showResult(gameState.result, '#ffd700');
+        } else {
+          gameState.result = 'Perdiste.';
+          showResult(gameState.result, '#ff4444');
+        }
+        updateCredits();
+      }
+    }
+
+    // Póker de tres cartas
+    function startPoker() {
+      currentGame = 'poker';
+      gameState = { phase: 'bet' };
+      showResult('Ingresa tu apuesta (e.g., "50")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playPoker(bet);
+    }
+
+    function playPoker(bet) {
+      let amount = parseInt(bet);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.bet = amount;
+      gameState.playerCards = [drawCard(), drawCard(), drawCard()];
+      gameState.dealerCards = [drawCard(), drawCard(), drawCard()];
+      gameState.phase = 'end';
+      let playerRank = evaluatePokerHand(gameState.playerCards);
+      let dealerRank = evaluatePokerHand(gameState.dealerCards);
+      if (playerRank.rank > dealerRank.rank) {
+        credits += amount * 3;
+        showResult('¡Ganaste! Tu mano es mejor.', '#00ff00');
+      } else if (playerRank.rank === dealerRank.rank) {
+        credits += amount; // Empate, casa gana
+        showResult('Empate. Casa gana.', '#ffd700');
+      } else {
+        showResult('Perdiste. La casa tiene mejor mano.', '#ff4444');
+      }
+      updateCredits();
+    }
+
+    function evaluatePokerHand(cards) {
+      let values = cards.map(c => getCardValue(c)).sort((a, b) => b - a);
+      let suits = cards.map(c => c.suit);
+      let isFlush = suits.every(s => s === suits[0]);
+      let isStraight = values[0] - values[2] === 2 && new Set(values).size === 3;
+      if (isFlush && isStraight) return { rank: 5 }; // Escalera de color
+      if (values[0] === values[1] && values[1] === values[2]) return { rank: 4 }; // Trío
+      if (isFlush) return { rank: 3 }; // Color
+      if (isStraight) return { rank: 2 }; // Escalera
+      if (values[0] === values[1] || values[1] === values[2]) return { rank: 1 }; // Par
+      return { rank: 0, high: values[0] }; // Carta alta
+    }
+
+    function drawPoker() {
+      background(50);
+      textSize(24);
+      fill(255);
+      text('Jugador:', 100, 50);
+      gameState.playerCards.forEach((card, i) => {
+        fill('#fff');
+        rect(100 + i * 80, 80, 60, 80);
+        fill(card.suit === '♥' || card.suit === '♦' ? '#ff4444' : '#000');
+        text(`${card.value}${card.suit}`, 130 + i * 80, 120);
+      });
+      text('Crupier:', 100, 200);
+      gameState.dealerCards.forEach((card, i) => {
+        fill('#fff');
+        rect(100 + i * 80, 230, 60, 80);
+        fill(card.suit === '♥' || card.suit === '♦' ? '#ff4444' : '#000');
+        text(`${card.value}${card.suit}`, 130 + i * 80, 270);
+      });
+    }
+
+    // Bingo
+    function startBingo() {
+      currentGame = 'bingo';
+      gameState = {
+        board: Array(5).fill().map(() => Array(5).fill(0).map(() => floor(random(1, 76)))),
+        called: [],
+        phase: 'bet'
+      };
+      showResult('Ingresa tu apuesta (e.g., "50")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playBingo(bet);
+    }
+
+    function playBingo(bet) {
+      let amount = parseInt(bet);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.bet = amount;
+      gameState.called = [floor(random(1, 76))];
+      gameState.phase = 'play';
+      showResult('Clic para sacar número', '#ffd700');
+    }
+
+    function drawBingo() {
+      background(50);
+      textSize(20);
+      fill(255);
+      text('Tablero de Bingo', width / 2, 30);
+      for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+          fill(gameState.called.includes(gameState.board[i][j]) ? '#00ff00' : '#fff');
+          rect(100 + j * 80, 60 + i * 60, 60, 60);
+          fill(0);
+          text(gameState.board[i][j], 130 + j * 80, 90 + i * 60);
+        }
+      }
+      text('Números: ' + gameState.called.join(', '), width / 2, 380);
+      if (gameState.result) {
+        text(gameState.result, width / 2, height / 2);
+      }
+    }
+
+    function playBingoTurn() {
+      if (gameState.phase !== 'play') return;
+      gameState.called.push(floor(random(1, 76)));
+      let won = checkBingoWin();
+      if (won) {
+        credits += gameState.bet * 10;
+        gameState.result = '¡Ganaste! Línea completa.';
+        showResult(gameState.result, '#00ff00');
+        gameState.phase = 'end';
+        updateCredits();
+      } else if (gameState.called.length >= 20) {
+        gameState.result = 'Perdiste. Sin línea.';
+        showResult(gameState.result, '#ff4444');
+        gameState.phase = 'end';
+        updateCredits();
+      }
+    }
+
+    function checkBingoWin() {
+      for (let i = 0; i < 5; i++) {
+        if (gameState.board[i].every(n => gameState.called.includes(n))) return true;
+        if (gameState.board.every(row => gameState.called.includes(row[i]))) return true;
+      }
+      return false;
+    }
+
+    // Dibujar lienzo
+    function draw() {
+      if (currentGame === 'slots') {
+        drawSlots();
+      } else if (currentGame === 'roulette') {
+        drawRoulette();
+      } else if (currentGame === 'blackjack') {
+        drawBlackjack();
+      } else if (currentGame === 'poker') {
+        drawPoker();
+      } else if (currentGame === 'bingo') {
+        drawBingo();
+      } else {
+        background(50);
+        textSize(32);
+        fill('#ffd700');
+        text('Bienvenido a Casino Casio', width / 2, height / 2);
+        text('Elige un juego para comenzar', width / 2, height / 2 + 50);
+      }
+    }
+
+    // Manejar clics
+    function mousePressed() {
+      if (currentGame === 'slots' && !gameState.spinning) {
+        playSlots();
+      } else if (currentGame === 'bingo' && gameState.phase === 'play') {
+        playBingoTurn();
+      } else if (currentGame === 'blackjack' && gameState.phase === 'play') {
+        playBlackjackTurn(true);
+      }
+    }
+
+    function doubleClicked() {
+      if (currentGame === 'blackjack' && gameState.phase === 'play') {
+        playBlackjackTurn(false);
+      }
+    }
+  </script>
+</body>
+</html>
