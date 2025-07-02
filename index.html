@@ -50,7 +50,7 @@
       padding: 0;
       overflow: hidden;
       font-family: 'Arial Black', Arial, sans-serif;
-      background: linear-gradient(135deg, #1a0a2a, #2a0a0a);
+      background: linear-gradient(135deg, #1a0a2a, #2a0a4a);
       color: #ffd700;
     }
     #casino-container {
@@ -60,30 +60,30 @@
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      background: rgba(0, 0, 0, 0.85);
-      box-shadow: inset 0 0 50px #ff4444;
+      background: rgba(0, 0, 0, 0.9);
+      box-shadow: inset 0 0 60px #ff4444;
       position: relative;
     }
     #header {
       width: 100%;
       padding: 20px;
-      background: linear-gradient(180deg, #ff4444, #1a1a1a);
+      background: linear-gradient(180deg, #1a0a4a, #000);
       text-align: center;
-      box-shadow: 0 0 20px #ffd700;
+      box-shadow: 0 0 30px #ffd700;
     }
     h1 {
-      font-size: 64px;
+      font-size: 72px;
       margin: 0;
-      text-shadow: 0 0 15px #ff4444, 0 0 30px #ffd700;
+      text-shadow: 0 0 20px #ff4444, 0 0 40px #ffd700;
     }
     #credits {
-      font-size: 36px;
+      font-size: 40px;
       background: #ffd700;
-      color: #1a1a1a;
-      padding: 10px 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 20px #ffd700;
-      margin: 10px 0;
+      color: #1a0a2a;
+      padding: 15px 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 25px #ffd700;
+      margin: 15px 0;
       transition: transform 0.3s;
     }
     #credits.winning {
@@ -93,33 +93,35 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 15px;
+      gap: 20px;
       padding: 20px;
     }
     button {
-      padding: 15px 30px;
-      font-size: 24px;
+      padding: 20px 40px;
+      font-size: 28px;
       background: linear-gradient(45deg, #ff4444, #ff7777);
       color: #fff;
       border: none;
-      border-radius: 15px;
+      border-radius: 20px;
       cursor: pointer;
-      box-shadow: 0 0 15px #ff4444, 0 0 25px #ffd700;
+      box-shadow: 0 0 20px #ff4444, 0 0 30px #ffd700;
       transition: transform 0.2s, box-shadow 0.2s;
+      animation: pulseButton 2s infinite;
     }
     button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 25px #ff4444, 0 0 40px #ffd700;
+      transform: scale(1.1);
+      box-shadow: 0 0 30px #ff4444, 0 0 50px #ffd700;
     }
     #game-result {
-      font-size: 28px;
-      text-shadow: 0 0 10px #fff;
+      font-size: 32px;
+      text-shadow: 0 0 15px #fff;
       padding: 20px;
+      text-align: center;
     }
     canvas {
-      border: 3px solid #ffd700;
-      border-radius: 15px;
-      box-shadow: 0 0 20px #ff4444;
+      border: 4px solid #ffd700;
+      border-radius: 20px;
+      box-shadow: 0 0 25px #ff4444;
       max-width: 90%;
       max-height: 60vh;
     }
@@ -129,15 +131,16 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
       display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       color: #ffd700;
-      font-size: 72px;
-      text-shadow: 0 0 20px #ff4444;
+      font-size: 80px;
+      text-shadow: 0 0 25px #ff4444;
       z-index: 1000;
+      animation: winText 2s infinite;
     }
     #win-overlay.show {
       display: flex;
@@ -149,13 +152,23 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      background: radial-gradient(circle, rgba(255, 68, 68, 0.2), transparent);
+      background: radial-gradient(circle, rgba(255, 68, 68, 0.3), transparent);
       animation: pulse 3s infinite;
     }
     @keyframes pulse {
       0% { opacity: 0.3; }
-      50% { opacity: 0.6; }
+      50% { opacity: 0.7; }
       100% { opacity: 0.3; }
+    }
+    @keyframes pulseButton {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    @keyframes winText {
+      0% { transform: rotate(0deg); color: #ffd700; }
+      50% { transform: rotate(5deg); color: #ff4444; }
+      100% { transform: rotate(0deg); color: #ffd700; }
     }
   </style>
 </head>
@@ -184,17 +197,26 @@
     let currentGame = null;
     let gameState = {};
     let particles = [];
+    let symbols = {
+      'seven': null,
+      'diamond': null,
+      'bell': null,
+      'cherry': null,
+      'bar': null
+    };
+    let cardImages = {};
+    let rouletteWheel;
 
     // Partículas para animaciones de victoria
     class Particle {
       constructor() {
         this.x = random(width);
         this.y = random(height);
-        this.vx = random(-2, 2);
-        this.vy = random(-2, 2);
-        this.size = random(5, 15);
+        this.vx = random(-3, 3);
+        this.vy = random(-3, 3);
+        this.size = random(5, 20);
         this.color = color(random(255), random(255), random(255));
-        this.lifespan = 60;
+        this.lifespan = 100;
       }
       update() {
         this.x += this.vx;
@@ -206,6 +228,27 @@
         noStroke();
         ellipse(this.x, this.y, this.size);
       }
+    }
+
+    // Cargar imágenes
+    function preload() {
+      // Símbolos de tragamonedas
+      symbols['seven'] = loadImage('images/symbols/seven.png');
+      symbols['diamond'] = loadImage('images/symbols/diamond.png');
+      symbols['bell'] = loadImage('images/symbols/bell.png');
+      symbols['cherry'] = loadImage('images/symbols/cherry.png');
+      symbols['bar'] = loadImage('images/symbols/bar.png');
+      // Cartas
+      let suits = ['C', 'D', 'H', 'S'];
+      let values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      for (let suit of suits) {
+        for (let value of values) {
+          let card = value + suit;
+          cardImages[card] = loadImage(`https://raw.githubusercontent.com/hayeah/playing-cards-assets/master/png/${value}${suit}.png`);
+        }
+      }
+      // Ruleta
+      rouletteWheel = loadImage('images/roulette_wheel.png');
     }
 
     // Actualizar créditos
@@ -225,9 +268,9 @@
       document.getElementById('game-result').style.color = color;
     }
 
-    // Mostrar animación de victoria
+    // Animación de victoria
     function showWinAnimation(message) {
-      particles = Array(50).fill().map(() => new Particle());
+      particles = Array(100).fill().map(() => new Particle());
       let overlay = document.getElementById('win-overlay');
       overlay.children[0].innerText = message;
       overlay.classList.add('show');
@@ -247,49 +290,11 @@
       resizeCanvas(windowWidth * 0.9, windowHeight * 0.6);
     }
 
-    // Dibujar símbolo vectorial
-    function drawSymbol(symbol, x, y, size) {
-      push();
-      translate(x, y);
-      scale(size / 100);
-      if (symbol === '7') {
-        fill('#ff4444');
-        textSize(80);
-        text('7', 0, 0);
-      } else if (symbol === 'diamond') {
-        fill('#00b7eb');
-        beginShape();
-        vertex(0, -50);
-        vertex(50, 0);
-        vertex(0, 50);
-        vertex(-50, 0);
-        endShape(CLOSE);
-      } else if (symbol === 'bell') {
-        fill('#ffd700');
-        ellipse(0, 0, 80, 60);
-        rect(-20, 40, 40, 20);
-      } else if (symbol === 'cherry') {
-        fill('#ff0000');
-        ellipse(-20, 0, 40);
-        ellipse(20, 0, 40);
-        stroke('#00ff00');
-        line(0, -20, 0, -40);
-        noStroke();
-      } else if (symbol === 'bar') {
-        fill('#ffffff');
-        rect(-50, -25, 100, 50);
-        fill('#000');
-        textSize(40);
-        text('BAR', 0, 0);
-      }
-      pop();
-    }
-
     // Tragamonedas
     function startSlots() {
       currentGame = 'slots';
       gameState = { spinning: false, result: null, spinTime: 0 };
-      showResult('¡Gira los rodillos! (Clic para jugar)', '#ffd700');
+      showResult('Clic en el lienzo para girar (20 créditos)', '#ffd700');
       redraw();
     }
 
@@ -307,11 +312,12 @@
 
     function drawSlots() {
       background(30);
-      let symbols = ['7', 'diamond', 'bell', 'cherry', 'bar'];
+      let symbolKeys = ['seven', 'diamond', 'bell', 'cherry', 'bar'];
       let weights = [0.2, 0.2, 0.2, 0.2, 0.2]; // 50/50
       if (gameState.spinning && millis() - gameState.spinTime < 2000) {
         for (let i = 0; i < 3; i++) {
-          drawSymbol(symbols[floor(random(symbols.length))], 150 + i * 150, height / 2, 100);
+          let randSymbol = symbolKeys[floor(random(symbolKeys.length))];
+          image(symbols[randSymbol], 150 + i * 150, height / 2 - 50, 100, 100);
         }
       } else if (gameState.spinning) {
         gameState.spinning = false;
@@ -322,14 +328,14 @@
           for (let j = 0; j < weights.length; j++) {
             sum += weights[j];
             if (rand < sum) {
-              gameState.result.push(symbols[j]);
+              gameState.result.push(symbolKeys[j]);
               break;
             }
           }
         }
         showResult(`Resultado: ${gameState.result.join(' | ')}`, '#fff');
         if (gameState.result[0] === gameState.result[1] && gameState.result[1] === gameState.result[2]) {
-          if (gameState.result[0] === '7') {
+          if (gameState.result[0] === 'seven') {
             credits += 500;
             showWinAnimation('¡JACKPOT! 500 créditos');
           } else {
@@ -344,16 +350,22 @@
       }
       if (gameState.result) {
         for (let i = 0; i < 3; i++) {
-          drawSymbol(gameState.result[i], 150 + i * 150, height / 2, 100);
+          image(symbols[gameState.result[i]], 150 + i * 150, height / 2 - 50, 100, 100);
         }
       }
+      // Dibujar partículas
+      particles = particles.filter(p => p.lifespan > 0);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
     }
 
     // Ruleta
     function startRoulette() {
       currentGame = 'roulette';
-      gameState = { spinning: false, result: null, spinTime: 0 };
-      showResult('Apuesta (e.g., "50 rojo" o "50 17")', '#ffd700');
+      gameState = { spinning: false, result: null, spinTime: 0, ballAngle: 0 };
+      showResult('Ingresa tu apuesta (e.g., "50 rojo" o "50 17")', '#ffd700');
       let bet = prompt('Ingresa tu apuesta:');
       if (!bet) return;
       playRoulette(bet);
@@ -371,22 +383,24 @@
       gameState.spinning = true;
       gameState.spinTime = millis();
       gameState.bet = { amount, choice };
+      gameState.ballAngle = random(TWO_PI);
     }
 
     function drawRoulette() {
       background(30);
-      if (gameState.spinning && millis() - gameState.spinTime < 2000) {
+      if (gameState.spinning && millis() - gameState.spinTime < 3000) {
         push();
         translate(width / 2, height / 2);
         rotate(frameCount * 0.1);
-        fill('#ff4444');
-        arc(0, 0, 200, 200, 0, PI);
-        fill('#000');
-        arc(0, 0, 200, 200, PI, TWO_PI);
-        fill('#fff');
-        textSize(24);
-        text('Girando...', 0, 0);
+        image(rouletteWheel, -rouletteWheel.width / 2, -rouletteWheel.height / 2, 300, 300);
         pop();
+        // Pelota girando
+        gameState.ballAngle += 0.15;
+        let ballX = width / 2 + 120 * cos(gameState.ballAngle);
+        let ballY = height / 2 + 120 * sin(gameState.ballAngle);
+        fill('#fff');
+        ellipse(ballX, ballY, 15, 15);
+        showResult('¡Girando!', '#fff');
       } else if (gameState.spinning) {
         gameState.spinning = false;
         let result = floor(random(0, 36));
@@ -417,69 +431,210 @@
       if (gameState.result) {
         push();
         translate(width / 2, height / 2);
-        fill(gameState.result.color === 'rojo' ? '#ff4444' : '#000');
-        ellipse(0, 0, 200);
-        fill('#fff');
-        textSize(32);
-        text(gameState.result.number, 0, 0);
+        let angle = map(gameState.result.number, 0, 36, 0, TWO_PI);
+        rotate(angle);
+        image(rouletteWheel, -rouletteWheel.width / 2, -rouletteWineel.height / 2, 300, 300);
         pop();
+        let ballX = width / 2 + 100 * cos(angle + PI);
+        let ballY = height / 2 + 100 * sin(angle + PI);
+        fill('#fff');
+        ellipse(ballX, ballY, 15, 15);
+      }
+      particles = particles.filter(p => p.lifespan > 0);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+    }
+
+    // Blackjack
+    function startBlackjack() {
+      currentGame = 'blackjack';
+      gameState = {
+        playerCards: [],
+        dealerCards: [],
+        phase: 'bet',
+        result: null
+      };
+      showResult('Ingresa tu apuesta (e.g., "50")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playBlackjack(bet);
+    }
+
+    function playBlackjack(bet) {
+      let amount = parseInt(bet);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.bet = amount;
+      gameState.playerCards = [drawCard(), drawCard()];
+      gameState.dealerCards = [drawCard(), drawCard()];
+      gameState.phase = 'play';
+      showResult('Clic para pedir carta, doble clic para plantarte', '#ffd700');
+    }
+
+    function drawCard() {
+      let values = ['A Babel', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      let suits = ['C', 'D', 'H', 'S'];
+      return { value: values[floor(random(values.length))], suit: suits[floor(random(suits.length))] };
+    }
+
+    function getCardValue(card) {
+      if (card.value === 'A') return 11;
+      if (['J', 'Q', 'K'].includes(card.value)) return 10;
+      return parseInt(card.value);
+    }
+
+    function calculateHand(cards) {
+      let value = 0;
+      let aces = 0;
+      for (let card of cards) {
+        if (card.value === 'A') aces++;
+        value += getCardValue(card);
+      }
+      while (value > 21 && aces > 0) {
+        value -= 10;
+        aces--;
+      }
+      return value;
+    }
+
+    function drawBlackjack() {
+      background(30);
+      textSize(24);
+      fill(255);
+      text('Jugador:', 100, 50);
+      gameState.playerCards.forEach((card, i) => {
+        let cardKey = card.value + card.suit;
+        image(cardImages[cardKey], 100 + i * 80, 80, 60, 80);
+      });
+      text('Crupier:', 100, 200);
+      gameState.dealerCards.forEach((card, i) => {
+        let cardKey = card.value + card.suit;
+        image(cardImages[cardKey], 100 + i * 80, 230, 60, 80);
+      });
+      if (gameState.result) {
+        text(gameState.result, width / 2, height / 2);
+      }
+      particles = particles.filter(p => p.lifespan > 0);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+    }
+
+    function playBlackjackTurn(hit) {
+      if (gameState.phase !== 'play') return;
+      if (hit) {
+        gameState.playerCards.push(drawCard());
+        if (calculateHand(gameState.playerCards) > 21) {
+          gameState.phase = 'end';
+          gameState.result = 'Perdiste. Te pasaste.';
+          showResult(gameState.result, '#ff4444');
+          updateCredits();
+          return;
+        }
+      } else {
+        gameState.phase = 'end';
+        while (calculateHand(gameState.dealerCards) < 17) {
+          gameState.dealerCards.push(drawCard());
+        }
+        let playerValue = calculateHand(gameState.playerCards);
+        let dealerValue = calculateHand(gameState.dealerCards);
+        if (dealerValue > 21 || playerValue > dealerValue) {
+          credits += gameState.bet * 2;
+          gameState.result = '¡Ganaste!';
+          showWinAnimation('¡Ganaste!');
+          updateCredits(true);
+        } else if (playerValue === dealerValue) {
+          credits += gameState.bet;
+          gameState.result = 'Empate.';
+          showResult(gameState.result, '#ffd700');
+        } else {
+          gameState.result = 'Perdiste.';
+          showResult(gameState.result, '#ff4444');
+        }
+        updateCredits();
       }
     }
 
- sabbia el código aquí. ¡Ya está listo para brillar y enganchar a todos!
+    // Póker de tres cartas
+    function startPoker() {
+      currentGame = 'poker';
+      gameState = { phase: 'bet' };
+      showResult('Ingresa tu apuesta (e.g., "50")', '#ffd700');
+      let bet = prompt('Ingresa tu apuesta:');
+      if (!bet) return;
+      playPoker(bet);
+    }
 
----
+    function playPoker(bet) {
+      let amount = parseInt(bet);
+      if (isNaN(amount) || amount <= 0 || amount > credits) {
+        showResult('Apuesta inválida.', '#ff4444');
+        return;
+      }
+      credits -= amount;
+      updateCredits();
+      gameState.bet = amount;
+      gameState.playerCards = [drawCard(), drawCard(), drawCard()];
+      gameState.dealerCards = [drawCard(), drawCard(), drawCard()];
+      gameState.phase = 'end';
+      let playerRank = evaluatePokerHand(gameState.playerCards);
+      let dealerRank = evaluatePokerHand(gameState.dealerCards);
+      if (playerRank.rank > dealerRank.rank) {
+        credits += amount * 3;
+        showWinAnimation('¡Ganaste! Tu mano es mejor.');
+        updateCredits(true);
+      } else if (playerRank.rank === dealerRank.rank) {
+        credits += amount;
+        showResult('Empate.', '#ffd700');
+      } else {
+        showResult('Perdiste. La casa tiene mejor mano.', '#ff4444');
+      }
+      updateCredits();
+    }
 
-### Instrucciones para subir a GitHub (sin programación)
+    function evaluatePokerHand(cards) {
+      let values = cards.map(c => getCardValue(c)).sort((a, b) => b - a);
+      let suits = cards.map(c => c.suit);
+      let isFlush = suits.every(s => s === suits[0]);
+      let isStraight = values[0] - values[2] === 2 && new Set(values).size === 3;
+      if (isFlush && isStraight) return { rank: 5 };
+      if (values[0] === values[1] && values[1] === values[2]) return { rank: 4 };
+      if (isFlush) return { rank: 3 };
+      if (isStraight) return { rank: 2 };
+      if (values[0] === values[1] || values[1] === values[2]) return { rank: 1 };
+      return { rank: 0, high: values[0] };
+    }
 
-1. **Guarda el archivo**:
-   - Copia el código de arriba en el **Bloc de Notas** (o cualquier editor de texto).
-   - Guardalo como `index.html` en una carpeta llamada `casino-casio` en tu Escritorio.
-   - Abrí `index.html` en Chrome para asegurarte de que el casino aparece (deberías ver un diseño con neones, botones brillantes y un lienzo con los juegos).
+    function drawPoker() {
+      background(30);
+      textSize(24);
+      fill(255);
+      text('Jugador:', 100, 50);
+      gameState.playerCards.forEach((card, i) => {
+        let cardKey = card.value + card.suit;
+        image(cardImages[cardKey], 100 + i * 80, 80, 60, 80);
+      });
+      text('Crupier:', 100, 200);
+      gameState.dealerCards.forEach((card, i) => {
+        let cardKey = card.value + card.suit;
+        image(cardImages[cardKey], 100 + i * 80, 230, 60, 80);
+      });
+      particles = particles.filter(p => p.lifespan > 0);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+    }
 
-2. **Subí a GitHub**:
-   - Andá a [github.com](https://github.com) y creá una cuenta (o iniciá sesión).
-   - Hacé clic en **+ > New repository**.
-   - Poné:
-     - **Nombre**: `casino-casio`.
-     - **Descripción**: “Mi casino súper pro para amigos”.
-     - **Visibilidad**: **Public** (o **Private** si querés).
-     - Marcá **Add a README file**.
-   - Hacé clic en **Create repository**.
-   - En la página del repositorio, hacé clic en **Add file > Upload files**.
-   - Arrastrá `index.html` desde tu carpeta al navegador.
-   - Escribí un mensaje como “Subo el casino” y hacé clic en **Commit changes**.
-
-3. **Activá GitHub Pages**:
-   - En el repositorio, andá a **Settings > Pages**.
-   - En **Branch**, elegí **main** y dejá la carpeta como `/ (root)`.
-   - Hacé clic en **Save**.
-   - Esperá 1-5 minutos. La URL aparecerá en la sección **Pages** (e.g., `https://tu-usuario.github.io/casino-casio/`).
-   - Abrí la URL en el navegador para ver tu casino.
-
-4. **Compartí**:
-   - Mandá la URL a tus amigos por WhatsApp o donde quieras. Funciona en computadoras y celulares.
-
----
-
-### Cómo jugar
-- **Tragamonedas**: Clic en “Tragamonedas” y en el lienzo para girar (20 créditos). Tres iguales dan premios (500 para “7”, 100 para otros).
-- **Ruleta**: Apuesta (e.g., “50 rojo” o “50 17”). Ganas 2x en color, 35x en número.
-- **Blackjack**: Apuesta, pedí cartas (clic) o plantate (doble clic). Ganas 2x si superás al crupier.
-- **Póker de tres cartas**: Apuesta, compará manos. Ganas 3x si tu mano es mejor.
-- **Bingo**: Apuesta, clic para sacar números. Ganas 10x por línea completa.
-- **Victorias**: Cuando ganes, verás chispas y un mensaje de “¡FELICIDADES!” en pantalla completa.
-
----
-
-### Notas finales
-- **Diseño**: El casino ahora ocupa toda la pantalla, con neones, partículas, y animaciones que lo hacen sentir 100% profesional.
-- **Imágenes**: Usamos gráficos vectoriales (7, diamantes, campanas, etc.) en lugar de emojis para un look pulido.
-- **Probabilidades**: 50/50, sin ventaja para la casa (justo para pruebas).
-- **Próximos pasos**:
-  - Si querés sonidos, puedo añadir `p5.sound` o archivos de audio.
-  - Si querés imágenes reales, subilas a la carpeta del repositorio y te ayudo a integrarlas.
-  - Para pagos reales, necesitás un backend (puedo guiarte más adelante).
-- **Subir a GitHub**: Si algo no te sale, decime en qué paso estás trabado y lo resolvemos.
-
-¡Tu **Casino Casio** está listo para deslumbrar! Subilo a GitHub y que tus amigos flipen con las chispas y el diseño. 🎰✨
+    // Bingo
+    function startBingo() {
+      currentGame = 'bingo';
+      gameState = {
+        board: Array(5).fill().map(() => Array(5).fill(0).map(() => floor(random(1, 76)))),
